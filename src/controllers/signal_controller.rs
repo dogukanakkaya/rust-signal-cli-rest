@@ -35,10 +35,17 @@ impl SignalController {
 
         println!("{:?}", command_output);
 
-        format!(
-            "Register Captcha called -> phone: {}, token: {}",
-            phone, info.token
-        )
+        if command_output.stderr.is_empty() == false {
+            format!(
+                "An error occured: {}",
+                std::str::from_utf8(&command_output.stderr).unwrap()
+            )
+        } else {
+            format!(
+                "Register Captcha called with phone: {}, token: {}",
+                phone, info.token
+            )
+        }
     }
 
     pub async fn verify_code(
