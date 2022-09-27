@@ -1,4 +1,5 @@
 use actix_web::{web, Responder};
+use qrcode::QrCode;
 use serde::Deserialize;
 use std::process::{Command, Stdio};
 
@@ -77,25 +78,19 @@ impl SignalController {
 
     pub async fn link_device(name: web::Path<String>) -> impl Responder {
         let mut command = command_factory();
-        let mut command2 = command_factory();
 
         let command_output = command
             .arg("signal-cli")
             .arg("link")
             .arg("-n")
             .arg(&name.as_ref())
-            .stdout(Stdio::piped())
-            .spawn()
-            .unwrap();
-
-        let command2_output = command2
-            .arg("tee")
-            .arg(">(xargs -L 1 qrencode -t utf8)")
-            .stdin(command_output.stdout.unwrap())
             .output()
             .unwrap();
 
-        println!("{:?}", command2_output);
+        let code = QrCode::new(&command_output.stdout).unwrap();
+
+        let image = code.render::<image::Luma<u8>>().build();
+        image.save("qrcodes/qrcode.png").unwrap();
 
         format!("Link called -> name: {}", name)
     }
