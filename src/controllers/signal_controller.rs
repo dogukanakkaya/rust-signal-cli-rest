@@ -1,6 +1,6 @@
 use actix_web::{web, Responder};
 use serde::Deserialize;
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 pub struct SignalController {}
 
@@ -73,6 +73,31 @@ impl SignalController {
             "Verify called -> phone: {}, code: {}, pin: {:?}",
             phone, info.code, info.pin
         )
+    }
+
+    pub async fn link_device(name: web::Path<String>) -> impl Responder {
+        let mut command = command_factory();
+        let mut command2 = command_factory();
+
+        let command_output = command
+            .arg("signal-cli")
+            .arg("link")
+            .arg("-n")
+            .arg(&name.as_ref())
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap();
+
+        let command2_output = command2
+            .arg("tee")
+            .arg(">(xargs -L 1 qrencode -t utf8)")
+            .stdin(command_output.stdout.unwrap())
+            .output()
+            .unwrap();
+
+        println!("{:?}", command2_output);
+
+        format!("Link called -> name: {}", name)
     }
 }
 
