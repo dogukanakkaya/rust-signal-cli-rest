@@ -1,8 +1,8 @@
 use actix_web::{web, Responder};
 use qrcode::QrCode;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::process::{Command, Stdio};
-
+use uuid::Uuid;
 pub struct SignalController {}
 
 impl SignalController {
@@ -87,12 +87,16 @@ impl SignalController {
             .output()
             .unwrap();
 
+        let qr_id = Uuid::new_v4();
+        let path = format!("qrcodes/qrcode-{}.png", qr_id);
+
         let code = QrCode::new(&command_output.stdout).unwrap();
 
         let image = code.render::<image::Luma<u8>>().build();
-        image.save("qrcodes/qrcode.png").unwrap();
 
-        format!("Link called -> name: {}", name)
+        image.save(format!("qrcodes/qrcode-{}.png", qr_id)).unwrap();
+
+        web::Json(LinkDeviceResponse { path })
     }
 
     // @todo: later change to post method and get info data from post body instead of query string
@@ -140,4 +144,9 @@ pub struct VerifyInfo {
 pub struct SendInfo {
     recipient: String,
     message: String,
+}
+
+#[derive(Serialize)]
+struct LinkDeviceResponse {
+    path: String,
 }
