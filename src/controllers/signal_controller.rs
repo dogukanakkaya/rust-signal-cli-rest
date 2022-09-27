@@ -99,6 +99,29 @@ impl SignalController {
 
         format!("Link called -> name: {}", name)
     }
+
+    // @todo: later change to post method and get info data from post body instead of query string
+    pub async fn send(phone: web::Path<String>, info: web::Query<SendInfo>) -> impl Responder {
+        let mut command = command_factory();
+
+        command
+            .arg("signal-cli")
+            .arg("-a")
+            .arg(&phone.as_ref())
+            .arg("send")
+            .arg("-m")
+            .arg(&info.message)
+            .arg(&info.recipient);
+
+        let command_output = command.output().unwrap();
+
+        println!("{:?}", command_output);
+
+        format!(
+            "Send called -> phone: {}, message: {}, recipient: {}",
+            phone, info.message, info.recipient
+        )
+    }
 }
 
 fn command_factory() -> Command {
@@ -116,4 +139,10 @@ pub struct RegisterCaptchaInfo {
 pub struct VerifyInfo {
     code: String,
     pin: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct SendInfo {
+    recipient: String,
+    message: String,
 }

@@ -10,5 +10,6 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             .route(web::get().to(SignalController::register_captcha)),
     )
     .service(web::resource("/verify/{phone}").route(web::get().to(SignalController::verify_code)))
-    .service(web::resource("/link/{name}").route(web::get().to(SignalController::link_device)));
+    .service(web::resource("/link/{name}").route(web::get().to(SignalController::link_device)))
+    .service(web::resource("/send/{phone}").route(web::get().to(SignalController::send)));
 }
