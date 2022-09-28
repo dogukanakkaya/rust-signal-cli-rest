@@ -90,12 +90,10 @@ impl SignalController {
         let qr_id = Uuid::new_v4();
 
         let code = QrCode::new(&command_output.stdout).unwrap();
-
         let image = code.render::<image::Luma<u8>>().build();
 
-        let path = format!("qrcodes/qrcode-{}.png", qr_id);
-
         // FIXME: image.to_vec() is not resulting with the expected output so i save the image and then read it again
+        let path = format!("qrcodes/qrcode-{}.png", qr_id); // this variable will not be needed after above FIXME
         image.save(&path).unwrap();
         let body = std::fs::read(&path).unwrap();
         std::fs::remove_file(&path).unwrap();
