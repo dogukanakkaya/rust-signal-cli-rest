@@ -1,7 +1,7 @@
-use actix_web::{web, Responder};
+use actix_web::{http::StatusCode, web, HttpResponse, Responder};
 use qrcode::QrCode;
-use serde::{Deserialize, Serialize};
-use std::process::{Command, Stdio};
+use serde::Deserialize;
+use std::process::Command;
 use uuid::Uuid;
 pub struct SignalController {}
 
@@ -88,15 +88,21 @@ impl SignalController {
             .unwrap();
 
         let qr_id = Uuid::new_v4();
-        let path = format!("qrcodes/qrcode-{}.png", qr_id);
 
         let code = QrCode::new(&command_output.stdout).unwrap();
 
         let image = code.render::<image::Luma<u8>>().build();
 
-        image.save(format!("qrcodes/qrcode-{}.png", qr_id)).unwrap();
+        let path = format!("qrcodes/qrcode-{}.png", qr_id);
 
-        web::Json(LinkDeviceResponse { path })
+        // FIXME: image.to_vec() is not resulting with the expected output so i save the image and then read it again
+        image.save(&path).unwrap();
+        let body = std::fs::read(&path).unwrap();
+        std::fs::remove_file(&path).unwrap();
+
+        HttpResponse::build(StatusCode::OK)
+            .content_type("image/jpeg")
+            .body(body)
     }
 
     // @todo: later change to post method and get info data from post body instead of query string
@@ -144,9 +150,4 @@ pub struct VerifyInfo {
 pub struct SendInfo {
     recipient: String,
     message: String,
-}
-
-#[derive(Serialize)]
-struct LinkDeviceResponse {
-    path: String,
 }
