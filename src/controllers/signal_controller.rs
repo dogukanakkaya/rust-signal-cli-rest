@@ -1,13 +1,14 @@
+use crate::commands::signal_cli;
 use actix_web::{http::StatusCode, web, HttpResponse, Responder};
 use qrcode::QrCode;
 use serde::Deserialize;
-use std::process::Command;
 use uuid::Uuid;
+
 pub struct SignalController {}
 
 impl SignalController {
     pub async fn register(phone: web::Path<String>) -> impl Responder {
-        let command_output = command_factory()
+        let command_output = signal_cli::command()
             .arg("signal-cli")
             .arg("-a")
             .arg(&phone.as_ref())
@@ -24,7 +25,7 @@ impl SignalController {
         phone: web::Path<String>,
         info: web::Query<RegisterCaptchaInfo>,
     ) -> impl Responder {
-        let command_output = command_factory()
+        let command_output = signal_cli::command()
             .arg("signal-cli")
             .arg("-a")
             .arg(&phone.as_ref())
@@ -53,7 +54,7 @@ impl SignalController {
         phone: web::Path<String>,
         info: web::Query<VerifyInfo>,
     ) -> impl Responder {
-        let mut command = command_factory();
+        let mut command = signal_cli::command();
 
         command
             .arg("signal-cli")
@@ -77,7 +78,7 @@ impl SignalController {
     }
 
     pub async fn link_device(name: web::Path<String>) -> impl Responder {
-        let mut command = command_factory();
+        let mut command = signal_cli::command();
 
         let command_output = command
             .arg("signal-cli")
@@ -105,7 +106,7 @@ impl SignalController {
 
     // @todo: later change to post method and get info data from post body instead of query string
     pub async fn send(phone: web::Path<String>, info: web::Query<SendInfo>) -> impl Responder {
-        let mut command = command_factory();
+        let mut command = signal_cli::command();
 
         command
             .arg("signal-cli")
@@ -125,12 +126,6 @@ impl SignalController {
             phone, info.message, info.recipient
         )
     }
-}
-
-fn command_factory() -> Command {
-    let mut command = Command::new("docker");
-    command.arg("exec").arg("-i").arg("signal-cli");
-    command
 }
 
 #[derive(Deserialize)]
