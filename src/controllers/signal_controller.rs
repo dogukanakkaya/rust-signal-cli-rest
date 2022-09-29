@@ -104,6 +104,22 @@ impl SignalController {
             .body(body)
     }
 
+    pub async fn trust_unsafe(phone: web::Path<String>) -> impl Responder {
+        let mut command = signal_cli::command();
+
+        let command_output = command
+            .arg("signal-cli")
+            .arg("trust")
+            .arg("-a")
+            .arg(&phone.as_ref())
+            .output()
+            .unwrap();
+
+        println!("{:?}", command_output);
+
+        format!("Trust called -> phone: {}", phone)
+    }
+
     pub async fn send(phone: web::Path<String>, info: web::Json<SendInfo>) -> impl Responder {
         let mut command = signal_cli::command();
 
