@@ -104,8 +104,7 @@ impl SignalController {
             .body(body)
     }
 
-    // @todo: later change to post method and get info data from post body instead of query string
-    pub async fn send(phone: web::Path<String>, info: web::Query<SendInfo>) -> impl Responder {
+    pub async fn send(phone: web::Path<String>, info: web::Json<SendInfo>) -> impl Responder {
         let mut command = signal_cli::command();
 
         command
