@@ -2,6 +2,10 @@ use crate::commands::signal_cli;
 use actix_web::{http::StatusCode, web, HttpResponse, Responder};
 use qrcode::QrCode;
 use serde::Deserialize;
+use std::{
+    io::{BufRead, BufReader},
+    process::Stdio,
+};
 use uuid::Uuid;
 
 pub struct SignalController {}
@@ -80,28 +84,47 @@ impl SignalController {
     pub async fn link_device(name: web::Path<String>) -> impl Responder {
         let mut command = signal_cli::command();
 
-        let command_output = command
+        let mut command_output = command
             .arg("signal-cli")
             .arg("link")
             .arg("-n")
             .arg(&name.as_ref())
-            .output()
+            .stdout(Stdio::piped())
+            .spawn()
             .unwrap();
 
-        let qr_id = Uuid::new_v4();
+        let stdout = command_output.stdout.take().unwrap();
 
-        let code = QrCode::new(&command_output.stdout).unwrap();
-        let image = code.render::<image::Luma<u8>>().build();
+        let mut bufread = BufReader::new(stdout);
+        let mut buf = String::new();
 
-        // FIXME: image.to_vec() is not resulting with the expected output so i save the image and then read it again
-        let path = format!("qrcodes/qrcode-{}.png", qr_id); // this variable will not be needed after above FIXME
-        image.save(&path).unwrap();
-        let body = std::fs::read(&path).unwrap();
-        std::fs::remove_file(&path).unwrap();
+        while let Ok(n) = bufread.read_line(&mut buf) {
+            if n > 0 {
+                let qr_data = buf.trim();
+                let qr_id = Uuid::new_v4();
 
-        HttpResponse::build(StatusCode::OK)
-            .content_type("image/jpeg")
-            .body(body)
+                let code = QrCode::new(qr_data).unwrap();
+                let image = code.render::<image::Luma<u8>>().build();
+
+                // FIXME: image.to_vec() is not resulting with the expected output so i save the image and then read it again
+                let path = format!("qrcodes/qrcode-{}.png", qr_id); // this variable will not be needed after above FIXME
+                image.save(&path).unwrap();
+                let body = std::fs::read(&path).unwrap();
+                std::fs::remove_file(&path).unwrap();
+
+                buf.clear();
+
+                return HttpResponse::build(StatusCode::OK)
+                    .content_type("image/jpeg")
+                    .body(body);
+            } else {
+                return HttpResponse::Ok().content_type("plain/text").body("data");
+            }
+        }
+
+        let _ = command_output.wait();
+
+        HttpResponse::InternalServerError().finish()
     }
 
     pub async fn trust_unsafe(phone: web::Path<String>) -> impl Responder {
@@ -159,3 +182,13 @@ pub struct SendInfo {
     recipient: String,
     message: String,
 }
+
+// #[derive(Serialize)]
+// struct ErrorResponse {
+//     error: String,
+// }
+
+// #[derive(Serialize)]
+// struct SuccessResponse {
+//     data: String,
+// }
