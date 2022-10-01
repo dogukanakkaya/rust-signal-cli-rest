@@ -1,7 +1,7 @@
 use crate::commands::signal_cli;
 use actix_web::{http::StatusCode, web, HttpResponse, Responder};
 use qrcode::QrCode;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{
     io::{BufRead, BufReader},
     process::Stdio,
@@ -144,6 +144,8 @@ impl SignalController {
     }
 
     pub async fn send(phone: web::Path<String>, info: web::Json<SendInfo>) -> impl Responder {
+        let info = info.into_inner();
+
         let mut command = signal_cli::command();
 
         command
@@ -155,14 +157,15 @@ impl SignalController {
             .arg(&info.message)
             .arg(&info.recipient);
 
-        let command_output = command.output().unwrap();
+        // @todo: later add logger for this
+        let _ = command.output().unwrap();
 
-        println!("{:?}", command_output);
-
-        format!(
-            "Send called -> phone: {}, message: {}, recipient: {}",
-            phone, info.message, info.recipient
-        )
+        web::Json(SuccessResponse::<SendInfo> {
+            data: SendInfo {
+                recipient: info.recipient,
+                message: info.message,
+            },
+        })
     }
 }
 
@@ -177,18 +180,18 @@ pub struct VerifyInfo {
     pin: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct SendInfo {
     recipient: String,
     message: String,
 }
 
-// #[derive(Serialize)]
-// struct ErrorResponse {
-//     error: String,
-// }
+#[derive(Serialize)]
+struct ErrorResponse {
+    error: String,
+}
 
-// #[derive(Serialize)]
-// struct SuccessResponse {
-//     data: String,
-// }
+#[derive(Serialize)]
+struct SuccessResponse<T> {
+    data: T,
+}
