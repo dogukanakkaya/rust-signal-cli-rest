@@ -21,7 +21,7 @@ cargo watch -x 'run'
 ## Endpoints
 - [GET] `/api/register/{phone}`
 - [GET] `/api/register/captcha/{phone}?token={token}`
-  - To get captcha token: https://github.com/dogukanakkaya/signal-cli-docker
+  - To get captcha token, see readme of: https://github.com/dogukanakkaya/signal-cli-docker
 - [GET] `/api/verify/{phone}?code={code}&pin={pin}`
   - Code will be sent to your phone after register
 - [GET] `/api/link/{name}`
