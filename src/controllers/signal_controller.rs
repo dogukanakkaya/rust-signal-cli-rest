@@ -123,8 +123,6 @@ impl SignalController {
     }
 
     pub async fn send(phone: web::Path<String>, info: web::Json<SendInfo>) -> impl Responder {
-        let info = info.into_inner();
-
         let output = signal_cli::command()
             .arg("signal-cli")
             .arg("-a")
@@ -160,7 +158,7 @@ impl SignalController {
                             "reason": "{}"
                         }}
                     }}
-                    "#,
+                "#,
                 stderr
             ))
     }
