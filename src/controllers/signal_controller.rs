@@ -23,9 +23,11 @@ impl SignalController {
             .output()
             .unwrap();
 
-        println!("{:?}", output);
+        if output.stderr.is_empty() == false {
+            return Self::stderr_response(std::str::from_utf8(&output.stderr).unwrap());
+        }
 
-        format!("Register Captcha called -> phone: {}", phone)
+        HttpResponse::NoContent().finish()
     }
 
     pub async fn register_captcha(
@@ -42,19 +44,11 @@ impl SignalController {
             .output()
             .unwrap();
 
-        println!("{:?}", output);
-
         if output.stderr.is_empty() == false {
-            format!(
-                "An error occured: {}",
-                std::str::from_utf8(&output.stderr).unwrap()
-            )
-        } else {
-            format!(
-                "Register Captcha called with phone: {}, token: {}",
-                phone, info.token
-            )
+            return Self::stderr_response(std::str::from_utf8(&output.stderr).unwrap());
         }
+
+        HttpResponse::NoContent().finish()
     }
 
     pub async fn verify_code(
@@ -76,12 +70,11 @@ impl SignalController {
 
         let output = command.output().unwrap();
 
-        println!("{:?}", output);
+        if output.stderr.is_empty() == false {
+            return Self::stderr_response(std::str::from_utf8(&output.stderr).unwrap());
+        }
 
-        format!(
-            "Verify called -> phone: {}, code: {}, pin: {:?}",
-            phone, info.code, info.pin
-        )
+        HttpResponse::NoContent().finish()
     }
 
     pub async fn link_device(name: web::Path<String>) -> impl Responder {
@@ -138,9 +131,11 @@ impl SignalController {
             .output()
             .unwrap();
 
-        println!("{:?}", output);
+        if output.stderr.is_empty() == false {
+            return Self::stderr_response(std::str::from_utf8(&output.stderr).unwrap());
+        }
 
-        format!("Trust called -> phone: {}", phone)
+        HttpResponse::NoContent().finish()
     }
 
     pub async fn send(phone: web::Path<String>, info: web::Json<SendInfo>) -> impl Responder {
@@ -158,23 +153,25 @@ impl SignalController {
             .unwrap();
 
         if output.stderr.is_empty() == false {
-            let stderr = std::str::from_utf8(&output.stderr).unwrap();
+            return Self::stderr_response(std::str::from_utf8(&output.stderr).unwrap());
+        }
 
-            return HttpResponse::build(StatusCode::BAD_REQUEST)
-                .content_type(ContentType::json())
-                .body(format!(
-                    r#"
+        HttpResponse::NoContent().finish()
+    }
+
+    fn stderr_response(stderr: &str) -> HttpResponse {
+        HttpResponse::build(StatusCode::BAD_REQUEST)
+            .content_type(ContentType::json())
+            .body(format!(
+                r#"
                     {{
                         "error": {{
                             "reason": "{}"
                         }}
                     }}
                     "#,
-                    stderr
-                ));
-        }
-
-        HttpResponse::NoContent().finish()
+                stderr
+            ))
     }
 }
 
