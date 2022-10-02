@@ -107,6 +107,7 @@ impl SignalController {
                 let image = code.render::<image::Luma<u8>>().build();
 
                 // FIXME: image.to_vec() is not resulting with the expected output so i save the image and then read it again
+                // uuid will not be needed after that since i don't have to save the image
                 let path = format!("qrcodes/qrcode-{}.png", qr_id); // this variable will not be needed after above FIXME
                 image.save(&path).unwrap();
                 let body = std::fs::read(&path).unwrap();
@@ -118,7 +119,7 @@ impl SignalController {
                     .content_type("image/jpeg")
                     .body(body);
             } else {
-                return HttpResponse::Ok().content_type("plain/text").body("data");
+                break;
             }
         }
 
