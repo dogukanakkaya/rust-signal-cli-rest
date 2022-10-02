@@ -1,7 +1,10 @@
 use crate::commands::signal_cli;
-use actix_web::{http::StatusCode, web, HttpResponse, Responder};
+use actix_web::{
+    http::{header::ContentType, StatusCode},
+    web, HttpResponse, Responder,
+};
 use qrcode::QrCode;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::{
     io::{BufRead, BufReader},
     process::Stdio,
@@ -12,7 +15,7 @@ pub struct SignalController {}
 
 impl SignalController {
     pub async fn register(phone: web::Path<String>) -> impl Responder {
-        let command_output = signal_cli::command()
+        let output = signal_cli::command()
             .arg("signal-cli")
             .arg("-a")
             .arg(&phone.as_ref())
@@ -20,7 +23,7 @@ impl SignalController {
             .output()
             .unwrap();
 
-        println!("{:?}", command_output);
+        println!("{:?}", output);
 
         format!("Register Captcha called -> phone: {}", phone)
     }
@@ -29,7 +32,7 @@ impl SignalController {
         phone: web::Path<String>,
         info: web::Query<RegisterCaptchaInfo>,
     ) -> impl Responder {
-        let command_output = signal_cli::command()
+        let output = signal_cli::command()
             .arg("signal-cli")
             .arg("-a")
             .arg(&phone.as_ref())
@@ -39,12 +42,12 @@ impl SignalController {
             .output()
             .unwrap();
 
-        println!("{:?}", command_output);
+        println!("{:?}", output);
 
-        if command_output.stderr.is_empty() == false {
+        if output.stderr.is_empty() == false {
             format!(
                 "An error occured: {}",
-                std::str::from_utf8(&command_output.stderr).unwrap()
+                std::str::from_utf8(&output.stderr).unwrap()
             )
         } else {
             format!(
@@ -71,9 +74,9 @@ impl SignalController {
             command.arg("--pin").arg(pin);
         }
 
-        let command_output = command.output().unwrap();
+        let output = command.output().unwrap();
 
-        println!("{:?}", command_output);
+        println!("{:?}", output);
 
         format!(
             "Verify called -> phone: {}, code: {}, pin: {:?}",
@@ -82,9 +85,7 @@ impl SignalController {
     }
 
     pub async fn link_device(name: web::Path<String>) -> impl Responder {
-        let mut command = signal_cli::command();
-
-        let mut command_output = command
+        let mut output = signal_cli::command()
             .arg("signal-cli")
             .arg("link")
             .arg("-n")
@@ -93,7 +94,7 @@ impl SignalController {
             .spawn()
             .unwrap();
 
-        let stdout = command_output.stdout.take().unwrap();
+        let stdout = output.stdout.take().unwrap();
 
         let mut bufread = BufReader::new(stdout);
         let mut buf = String::new();
@@ -123,15 +124,13 @@ impl SignalController {
             }
         }
 
-        let _ = command_output.wait();
+        let _ = output.wait();
 
         HttpResponse::InternalServerError().finish()
     }
 
     pub async fn trust_unsafe(phone: web::Path<String>) -> impl Responder {
-        let mut command = signal_cli::command();
-
-        let command_output = command
+        let output = signal_cli::command()
             .arg("signal-cli")
             .arg("trust")
             .arg("-a")
@@ -139,7 +138,7 @@ impl SignalController {
             .output()
             .unwrap();
 
-        println!("{:?}", command_output);
+        println!("{:?}", output);
 
         format!("Trust called -> phone: {}", phone)
     }
@@ -147,26 +146,35 @@ impl SignalController {
     pub async fn send(phone: web::Path<String>, info: web::Json<SendInfo>) -> impl Responder {
         let info = info.into_inner();
 
-        let mut command = signal_cli::command();
-
-        command
+        let output = signal_cli::command()
             .arg("signal-cli")
             .arg("-a")
             .arg(&phone.as_ref())
             .arg("send")
             .arg("-m")
             .arg(&info.message)
-            .arg(&info.recipient);
+            .arg(&info.recipient)
+            .output()
+            .unwrap();
 
-        // @todo: later add logger for this
-        let _ = command.output().unwrap();
+        if output.stderr.is_empty() == false {
+            let stderr = std::str::from_utf8(&output.stderr).unwrap();
 
-        web::Json(SuccessResponse::<SendInfo> {
-            data: SendInfo {
-                recipient: info.recipient,
-                message: info.message,
-            },
-        })
+            return HttpResponse::build(StatusCode::BAD_REQUEST)
+                .content_type(ContentType::json())
+                .body(format!(
+                    r#"
+                    {{
+                        "error": {{
+                            "reason": "{}"
+                        }}
+                    }}
+                    "#,
+                    stderr
+                ));
+        }
+
+        HttpResponse::NoContent().finish()
     }
 }
 
@@ -181,18 +189,8 @@ pub struct VerifyInfo {
     pin: Option<String>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize)]
 pub struct SendInfo {
     recipient: String,
     message: String,
-}
-
-#[derive(Serialize)]
-struct ErrorResponse {
-    error: String,
-}
-
-#[derive(Serialize)]
-struct SuccessResponse<T> {
-    data: T,
 }
