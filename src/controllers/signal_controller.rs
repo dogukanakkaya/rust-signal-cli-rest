@@ -7,7 +7,7 @@ use qrcode::QrCode;
 use serde::Deserialize;
 use std::{
     io::{BufRead, BufReader},
-    process::Stdio,
+    process::{Output, Stdio},
 };
 use uuid::Uuid;
 
@@ -23,11 +23,7 @@ impl SignalController {
             .output()
             .unwrap();
 
-        if output.stderr.is_empty() == false {
-            return Self::stderr_response(std::str::from_utf8(&output.stderr).unwrap());
-        }
-
-        HttpResponse::NoContent().finish()
+        Self::respond_output(output)
     }
 
     pub async fn register_captcha(
@@ -44,11 +40,7 @@ impl SignalController {
             .output()
             .unwrap();
 
-        if output.stderr.is_empty() == false {
-            return Self::stderr_response(std::str::from_utf8(&output.stderr).unwrap());
-        }
-
-        HttpResponse::NoContent().finish()
+        Self::respond_output(output)
     }
 
     pub async fn verify_code(
@@ -70,11 +62,7 @@ impl SignalController {
 
         let output = command.output().unwrap();
 
-        if output.stderr.is_empty() == false {
-            return Self::stderr_response(std::str::from_utf8(&output.stderr).unwrap());
-        }
-
-        HttpResponse::NoContent().finish()
+        Self::respond_output(output)
     }
 
     pub async fn link_device(name: web::Path<String>) -> impl Responder {
@@ -131,11 +119,7 @@ impl SignalController {
             .output()
             .unwrap();
 
-        if output.stderr.is_empty() == false {
-            return Self::stderr_response(std::str::from_utf8(&output.stderr).unwrap());
-        }
-
-        HttpResponse::NoContent().finish()
+        Self::respond_output(output)
     }
 
     pub async fn send(phone: web::Path<String>, info: web::Json<SendInfo>) -> impl Responder {
@@ -152,8 +136,15 @@ impl SignalController {
             .output()
             .unwrap();
 
+        Self::respond_output(output)
+    }
+
+    fn respond_output(output: Output) -> HttpResponse {
         if output.stderr.is_empty() == false {
-            return Self::stderr_response(std::str::from_utf8(&output.stderr).unwrap());
+            let stderr = std::str::from_utf8(&output.stderr).unwrap();
+            if stderr.starts_with("INFO") == false {
+                return Self::stderr_response(&stderr);
+            }
         }
 
         HttpResponse::NoContent().finish()
